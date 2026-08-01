@@ -31,9 +31,21 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
         description += f"{evaluation.get('company_research')}\n\n"
 
     custom_fields = [
-        {"name": "Autonomy", "$type": "SimpleIssueCustomField", "value": scores.get("autonomy_proxy", 0)},
-        {"name": "Maturity", "$type": "SimpleIssueCustomField", "value": scores.get("maturity_proxy", 0)},
-        {"name": "StackMatch", "$type": "SimpleIssueCustomField", "value": scores.get("stack_match", 0)},
+        {
+            "name": "Autonomy",
+            "$type": "SimpleIssueCustomField",
+            "value": scores.get("autonomy_proxy", 0),
+        },
+        {
+            "name": "Maturity",
+            "$type": "SimpleIssueCustomField",
+            "value": scores.get("maturity_proxy", 0),
+        },
+        {
+            "name": "StackMatch",
+            "$type": "SimpleIssueCustomField",
+            "value": scores.get("stack_match", 0),
+        },
     ]
 
     tags = []
@@ -50,19 +62,19 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
         result = await session.call_tool(
             "create_youtrack_issue",
             arguments={
-                "summary": f"[ExFil Protocol] {org} - {identifier}", 
+                "summary": f"[ExFil Protocol] {org} - {identifier}",
                 "description": description,
                 "priority": priority,
                 "custom_fields": custom_fields,
-                "tags": tags
+                "tags": tags,
             },
         )
-        
+
         response_text = result.content[0].text if result.content else ""
         if response_text.startswith("Failed"):
             print(f"❌ Failed to create ticket: {response_text}")
             return False
-            
+
         print(f"✅ Ticket created successfully: {response_text}")
         return True
     except Exception as e:
