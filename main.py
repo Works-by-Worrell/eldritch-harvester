@@ -70,7 +70,7 @@ async def main():
             print(f"🎯 Target Acquired: '{term}'")
             query = quote_plus(term)
             target_url = board.format(term=query)
-            
+
             links = fetch_job_links(target_url)
             if links:
                 novel_links = [l for l in links if l not in processed_links]
@@ -79,7 +79,7 @@ async def main():
                         for link in novel_links:
                             f.write(f"{link}\n")
                     new_links_found += len(novel_links)
-            
+
     if new_links_found > 0:
         print(f"📥 Added {new_links_found} new jobs to the Hopper.")
 
@@ -91,11 +91,10 @@ async def main():
             f.write("")
         return
 
-    # 3. Deduplicate Hopper
     with open(HOPPER_FILE, "r") as f:
         # Preserve order but remove duplicates
         urls = list(dict.fromkeys([line.strip() for line in f if line.strip()]))
-        
+
     # Re-write the deduplicated list just to keep the file clean
     with open(HOPPER_FILE, "w") as f:
         for u in urls:
@@ -106,16 +105,16 @@ async def main():
         return
 
     print(f"Found {len(urls)} jobs in the Hopper.")
-    
+
     MAX_JOBS = int(os.environ.get("MAX_JOBS_PER_RUN", "5"))
     urls_to_process = urls[:MAX_JOBS]
     urls_to_keep_for_later = urls[MAX_JOBS:]
-    
+
     print(f"Processing up to {MAX_JOBS} jobs this run. {len(urls_to_keep_for_later)} will wait for next time.")
-    
+
     today_str = datetime.now().strftime('%Y_%m_%d')
     reject_log_file = f"logs/clutch_rejects_{today_str}.log"
-    
+
     with open(reject_log_file, "a") as log:
         log.write(f"\n--- Run Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n")
 
@@ -165,11 +164,11 @@ async def main():
                 # Handle cases where Gemini wraps the JSON object in an array
                 if isinstance(eval_data, list) and len(eval_data) > 0:
                     eval_data = eval_data[0]
-                    
+
                 if not isinstance(eval_data, dict):
                     print(f"❌ Gemini returned unexpected format: {type(eval_data)}")
                     continue
-                    
+
                 print(f"📊 Verdict: {eval_data.get('verdict')}")
                 
                 if eval_data.get("verdict") == "PROCEED":
@@ -189,7 +188,7 @@ async def main():
                         except Exception as e:
                             print(f"⚠️ Failed to research company {org_name}: {e}")
                             eval_data["company_research"] = "Research failed or unavailable."
-                            
+
                     success = await push_to_youtrack(session, eval_data, url)
                     if not success:
                         continue
@@ -199,15 +198,15 @@ async def main():
                     with open(reject_log_file, "a") as log:
                         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         log.write(f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n")
-                
+
                 total_in_tokens += t_in
                 total_out_tokens += t_out
                 successful_urls.append(url)
-                
+
                 # Mark as permanently processed
                 with open(PROCESSED_FILE, "a") as f:
                     f.write(f"{url}\n")
-            
+
     remaining_urls = [u for u in urls_to_process if u not in successful_urls] + urls_to_keep_for_later
     with open(HOPPER_FILE, "w") as f:
         for u in remaining_urls:
