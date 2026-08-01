@@ -46,7 +46,7 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
         result = await session.call_tool(
             "create_youtrack_issue",
             arguments={
-                "summary": f"Target: {org} - {identifier}", 
+                "summary": f"[ExFil Protocol] {org} - {identifier}", 
                 "description": description,
                 "custom_fields": custom_fields,
                 "tags": tags
