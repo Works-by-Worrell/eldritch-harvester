@@ -17,6 +17,12 @@ venv.bak/
 
 # Project queue/data files
 hopper.txt
+search_terms.txt
+target_boards.txt
+processed_links.txt
+
+# Logs
+logs/
 
 # IDEs
 .vscode/

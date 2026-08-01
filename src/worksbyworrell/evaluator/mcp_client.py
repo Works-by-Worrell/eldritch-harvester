@@ -21,13 +21,45 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
     for q in evaluation.get("strategic_questions", []):
         description += f"- {q}\n"
 
+    if evaluation.get("actionable_next_steps"):
+        description += "\n**Action Plan:**\n"
+        for step in evaluation.get("actionable_next_steps"):
+            description += f"- [ ] {step}\n"
+
+    if evaluation.get("company_research"):
+        description += "\n**Company Dossier:**\n"
+        description += f"{evaluation.get('company_research')}\n\n"
+
+    custom_fields = [
+        {"name": "Autonomy", "$type": "SimpleIssueCustomField", "value": scores.get("autonomy_proxy", 0)},
+        {"name": "Maturity", "$type": "SimpleIssueCustomField", "value": scores.get("maturity_proxy", 0)},
+        {"name": "StackMatch", "$type": "SimpleIssueCustomField", "value": scores.get("stack_match", 0)},
+    ]
+
+    tags = []
+    if evaluation.get("golden_ticket"):
+        print("🏆 GOLDEN TICKET IDENTIFIED! Preparing high-priority payload for Torque...")
+        tags.append("GoldenTicket")
+        description = "**🏆 GOLDEN TICKET!** Drop everything and apply yesterday.\n\n" + description
+
     try:
         result = await session.call_tool(
             "create_youtrack_issue",
-            arguments={"summary": f"Target: {org} - {identifier}", "description": description},
+            arguments={
+                "summary": f"Target: {org} - {identifier}", 
+                "description": description,
+                "custom_fields": custom_fields,
+                "tags": tags
+            },
         )
-        print(f"✅ Ticket created successfully: {result}")
+        
+        response_text = result.content[0].text if result.content else ""
+        if response_text.startswith("Failed"):
+            print(f"❌ Failed to create ticket: {response_text}")
+            return False
+            
+        print(f"✅ Ticket created successfully: {response_text}")
         return True
     except Exception as e:
-        print(f"❌ Failed to create ticket: {e}")
+        print(f"❌ Failed to create ticket via MCP: {e}")
         return False
