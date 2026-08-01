@@ -42,12 +42,17 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
         tags.append("GoldenTicket")
         description = "**🏆 GOLDEN TICKET!** Drop everything and apply yesterday.\n\n" + description
 
+    priority = evaluation.get("priority", "Normal")
+    if evaluation.get("golden_ticket"):
+        priority = "Show-stopper"
+
     try:
         result = await session.call_tool(
             "create_youtrack_issue",
             arguments={
                 "summary": f"[ExFil Protocol] {org} - {identifier}", 
                 "description": description,
+                "priority": priority,
                 "custom_fields": custom_fields,
                 "tags": tags
             },
