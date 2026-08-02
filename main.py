@@ -4,6 +4,9 @@ import os
 import subprocess
 from datetime import datetime
 from urllib.parse import quote_plus
+from dotenv import load_dotenv
+
+load_dotenv()
 
 os.makedirs("logs", exist_ok=True)
 
