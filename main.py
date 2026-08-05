@@ -152,7 +152,7 @@ async def main():
             clutch_resource = await session.read_resource("agent://clutch")
             clutch_system = clutch_resource.contents[0].text
             
-            profile_resource = await session.read_resource("profile://combined")
+            profile_resource = await session.read_resource("profile://raworre/combined")
             operator_profile = profile_resource.contents[0].text
             print("✅ Profiles loaded successfully.")
             
