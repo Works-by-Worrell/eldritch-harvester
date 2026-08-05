@@ -39,7 +39,7 @@ SEARCH_TERMS_FILE = "search_terms.txt"
 TARGET_BOARDS_FILE = "target_boards.txt"
 PROCESSED_FILE = "processed_links.txt"
 MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
-MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
+OPERATOR_PROFILE = os.environ.get("OPERATOR_PROFILE", "raworre")
 
 async def main():
     print("\n========================================")
@@ -152,7 +152,7 @@ async def main():
             clutch_resource = await session.read_resource("agent://clutch")
             clutch_system = clutch_resource.contents[0].text
             
-            profile_resource = await session.read_resource("profile://raworre/combined")
+            profile_resource = await session.read_resource(f"profile://{OPERATOR_PROFILE}/combined")
             operator_profile = profile_resource.contents[0].text
             print("✅ Profiles loaded successfully.")
             
