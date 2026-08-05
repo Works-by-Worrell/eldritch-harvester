@@ -39,8 +39,7 @@ SEARCH_TERMS_FILE = "search_terms.txt"
 TARGET_BOARDS_FILE = "target_boards.txt"
 PROCESSED_FILE = "processed_links.txt"
 MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
-CLUTCH_PROMPT_FILE = "../wbw-config-private/agents/clutch.md"
-PROFILE_FILE = "../wbw-config-private/profiles/raworre.md"
+MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
 
 async def main():
     print("\n========================================")
@@ -139,16 +138,23 @@ async def main():
     
     successful_urls = []
     
-    # Load prompts once per run
-    with open(CLUTCH_PROMPT_FILE, "r") as f:
-        clutch_system = f.read()
-    with open(PROFILE_FILE, "r") as f:
-        operator_profile = f.read()
+    # Prompts will be loaded from MCP server
+    
+
     
     async with sse_client(MCP_URL, headers=headers) as streams:
         async with ClientSession(streams[0], streams[1]) as session:
             await session.initialize()
             print("✅ Connected to Warlock MCP Server.")
+            
+            # Fetch prompts from MCP server
+            print("Fetching profiles from MCP server...")
+            clutch_resource = await session.read_resource("agent://clutch")
+            clutch_system = clutch_resource.contents[0].text
+            
+            profile_resource = await session.read_resource("profile://combined")
+            operator_profile = profile_resource.contents[0].text
+            print("✅ Profiles loaded successfully.")
             
             total_in_tokens = 0
             total_out_tokens = 0
