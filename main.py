@@ -140,7 +140,12 @@ async def main():
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             async with stdio_client(
-                "uvx", ["warlock-mcp==0.0.10", "--transport", "stdio"], env=get_default_environment()
+                "docker", [
+                    "run", "-i", "--rm",
+                    "--env-file", ".env",
+                    "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0",
+                    "--transport", "stdio"
+                ]
             ) as streams:
                 async with ClientSession(streams[0], streams[1]) as session:
                     await session.initialize()
