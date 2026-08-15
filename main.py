@@ -29,7 +29,6 @@ def tee_print(*args, **kwargs):
 builtins.print = tee_print
 
 from google import genai
-from google.genai import types
 from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 
@@ -193,13 +192,10 @@ async def main():
                                 if org_name and org_name.lower() != "unknown":
                                     try:
                                         print(f"🔍 Researching company dossier for: {org_name}...")
-                                        research_prompt = f"Perform a quick web search on the company '{org_name}'. Provide a 3-4 sentence summary including their main product/mission, year founded, and general Glassdoor or industry reputation."
+                                        research_prompt = f"Provide a concise 3-4 sentence summary of the company '{org_name}' including their main product/mission, year founded, and general industry reputation based on your pre-trained knowledge base."
                                         research_response = ai_client.models.generate_content(
                                             model="gemini-3.6-flash",
                                             contents=research_prompt,
-                                            config=types.GenerateContentConfig(
-                                                tools=[{"google_search": {}}]
-                                            ),
                                         )
                                         eval_data["company_research"] = (
                                             research_response.text.strip()
