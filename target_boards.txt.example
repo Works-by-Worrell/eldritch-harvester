@@ -1,2 +1,2 @@
 # Target Job Boards (URL templates with {term} parameter)
-https://builtin.com/jobs?search={term}
+https://builtin.com/jobs/remote?search={term}&city=&state=&country=USA&allLocations=true
