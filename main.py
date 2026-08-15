@@ -143,8 +143,8 @@ async def main():
     headers = {"Authorization": f"Bearer {token}"}
 
     successful_urls = []
-
-    # Prompts will be loaded from MCP server
+    total_in_tokens = 0
+    total_out_tokens = 0
 
     MAX_RETRIES = 3
     for attempt in range(1, MAX_RETRIES + 1):
@@ -154,76 +154,80 @@ async def main():
                     await session.initialize()
                     print("✅ Connected to Warlock MCP Server.")
 
-            # Fetch prompts from MCP server
-            print("Fetching profiles from MCP server...")
-            clutch_resource = await session.read_resource("agent://clutch")
-            clutch_system = clutch_resource.contents[0].text
+                    # Fetch profiles from MCP server
+                    print("Fetching profiles from MCP server...")
+                    clutch_resource = await session.read_resource("agent://clutch")
+                    clutch_system = clutch_resource.contents[0].text
 
-            profile_resource = await session.read_resource(f"profile://{OPERATOR_PROFILE}/combined")
-            operator_profile = profile_resource.contents[0].text
-            print("✅ Profiles loaded successfully.")
+                    profile_resource = await session.read_resource(
+                        f"profile://{OPERATOR_PROFILE}/combined"
+                    )
+                    operator_profile = profile_resource.contents[0].text
+                    print("✅ Profiles loaded successfully.")
 
-            total_in_tokens = 0
-            total_out_tokens = 0
+                    for url in urls_to_process:
+                        job_text = get_page_text(url)
+                        if not job_text:
+                            continue
 
-            for url in urls_to_process:
-                job_text = get_page_text(url)
-                if not job_text:
-                    continue
-
-                eval_data, t_in, t_out = evaluate_job(
-                    url, job_text, ai_client, clutch_system, operator_profile
-                )
-
-                if not eval_data:
-                    continue
-
-                # Handle cases where Gemini wraps the JSON object in an array
-                if isinstance(eval_data, list) and len(eval_data) > 0:
-                    eval_data = eval_data[0]
-
-                if not isinstance(eval_data, dict):
-                    print(f"❌ Gemini returned unexpected format: {type(eval_data)}")
-                    continue
-
-                print(f"📊 Verdict: {eval_data.get('verdict')}")
-
-                if eval_data.get("verdict") == "PROCEED":
-                    org_name = eval_data.get("organization")
-                    if org_name and org_name.lower() != "unknown":
-                        try:
-                            print(f"🔍 Researching company dossier for: {org_name}...")
-                            research_prompt = f"Perform a quick web search on the company '{org_name}'. Provide a 3-4 sentence summary including their main product/mission, year founded, and general Glassdoor or industry reputation."
-                            research_response = ai_client.models.generate_content(
-                                model="gemini-3.6-flash",
-                                contents=research_prompt,
-                                config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
-                            )
-                            eval_data["company_research"] = research_response.text.strip()
-                        except Exception as e:
-                            print(f"⚠️ Failed to research company {org_name}: {e}")
-                            eval_data["company_research"] = "Research failed or unavailable."
-
-                    success = await push_to_youtrack(session, eval_data, url)
-                    if not success:
-                        continue
-                else:
-                    print(f"🛑 Job rejected by Clutch: {url}")
-                    reason = eval_data.get("rejection_reason", "No reason provided")
-                    with open(reject_log_file, "a") as log:
-                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        log.write(
-                            f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
+                        eval_data, t_in, t_out = evaluate_job(
+                            url, job_text, ai_client, clutch_system, operator_profile
                         )
-                    cache_mgr.sync_rejection_log(reject_log_file, today_str)
 
-                total_in_tokens += t_in
-                total_out_tokens += t_out
-                successful_urls.append(url)
+                        if not eval_data:
+                            continue
 
-                # Mark as permanently processed
-                processed_links.add(url)
-                cache_mgr.upload_processed_links(processed_links)
+                        # Handle cases where Gemini wraps the JSON object in an array
+                        if isinstance(eval_data, list) and len(eval_data) > 0:
+                            eval_data = eval_data[0]
+
+                        if not isinstance(eval_data, dict):
+                            print(f"❌ Gemini returned unexpected format: {type(eval_data)}")
+                            continue
+
+                        print(f"📊 Verdict: {eval_data.get('verdict')}")
+
+                        if eval_data.get("verdict") == "PROCEED":
+                            org_name = eval_data.get("organization")
+                            if org_name and org_name.lower() != "unknown":
+                                try:
+                                    print(f"🔍 Researching company dossier for: {org_name}...")
+                                    research_prompt = f"Perform a quick web search on the company '{org_name}'. Provide a 3-4 sentence summary including their main product/mission, year founded, and general Glassdoor or industry reputation."
+                                    research_response = ai_client.models.generate_content(
+                                        model="gemini-3.6-flash",
+                                        contents=research_prompt,
+                                        config=types.GenerateContentConfig(
+                                            tools=[{"google_search": {}}]
+                                        ),
+                                    )
+                                    eval_data["company_research"] = research_response.text.strip()
+                                except Exception as e:
+                                    print(f"⚠️ Failed to research company {org_name}: {e}")
+                                    eval_data["company_research"] = (
+                                        "Research failed or unavailable."
+                                    )
+
+                            success = await push_to_youtrack(session, eval_data, url)
+                            if not success:
+                                continue
+                        else:
+                            print(f"🛑 Job rejected by Clutch: {url}")
+                            reason = eval_data.get("rejection_reason", "No reason provided")
+                            with open(reject_log_file, "a") as log:
+                                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                log.write(
+                                    f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
+                                )
+                            cache_mgr.sync_rejection_log(reject_log_file, today_str)
+
+                        total_in_tokens += t_in
+                        total_out_tokens += t_out
+                        successful_urls.append(url)
+
+                        # Mark as permanently processed
+                        processed_links.add(url)
+                        cache_mgr.upload_processed_links(processed_links)
+                        await asyncio.sleep(2.0)
             break
         except Exception as e:
             if attempt < MAX_RETRIES:
