@@ -35,7 +35,7 @@ from mcp.client.stdio import get_default_environment, stdio_client
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
 from src.worksbyworrell.harvester.scraper import fetch_job_links, get_page_text
-from src.worksbyworrell.storage import GCSCacheManager
+from src.worksbyworrell.storage import LocalCacheManager
 
 HOPPER_FILE = "hopper.txt"
 SEARCH_TERMS_FILE = "search_terms.txt"
@@ -50,7 +50,7 @@ async def main():
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("========================================\n")
 
-    cache_mgr = GCSCacheManager(local_processed_file=PROCESSED_FILE)
+    cache_mgr = LocalCacheManager(db_path="harvester_cache.db")
     processed_links = cache_mgr.download_processed_links()
 
     if os.path.exists(SEARCH_TERMS_FILE):
@@ -207,12 +207,9 @@ async def main():
                             else:
                                 print(f"🛑 Job rejected by Clutch: {url}")
                                 reason = eval_data.get("rejection_reason", "No reason provided")
-                                with open(reject_log_file, "a") as log:
-                                    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    log.write(
-                                        f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
-                                    )
-                                cache_mgr.sync_rejection_log(reject_log_file, today_str)
+                                org = eval_data.get('organization', 'Unknown')
+                                title = eval_data.get('identifier', 'Unknown')
+                                cache_mgr.log_rejection_to_db(url, org, title, reason)
 
                             total_in_tokens += t_in
                             total_out_tokens += t_out
