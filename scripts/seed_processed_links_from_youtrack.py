@@ -9,10 +9,13 @@ Issue #11
 import asyncio
 import os
 import re
+import sys
 from typing import List, Set
 
 import httpx
 from dotenv import load_dotenv
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 load_dotenv()
 
@@ -89,8 +92,11 @@ async def main():
         print("Set YOUTRACK_TOKEN to query YouTrack directly.")
         return
 
-    existing_links = load_existing_processed_links(PROCESSED_FILE)
-    print(f"Loaded {len(existing_links)} existing links from {PROCESSED_FILE}.")
+    from src.worksbyworrell.storage import GCSCacheManager
+
+    cache_mgr = GCSCacheManager(local_processed_file=PROCESSED_FILE)
+    existing_links = cache_mgr.download_processed_links()
+    print(f"Loaded {len(existing_links)} existing links (merged local + GCS).")
 
     print(f"Querying YouTrack API at {base_url}...")
     try:
@@ -109,10 +115,10 @@ async def main():
                 new_links.add(link)
 
     total_combined = existing_links.union(new_links)
-    save_processed_links(PROCESSED_FILE, total_combined)
+    cache_mgr.upload_processed_links(total_combined)
 
     print(
-        f"✅ Seeding complete. Added {len(new_links)} new links. Total in {PROCESSED_FILE}: {len(total_combined)}."
+        f"✅ Seeding complete. Added {len(new_links)} new links. Total synced: {len(total_combined)}."
     )
 
 
