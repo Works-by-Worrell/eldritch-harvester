@@ -215,6 +215,7 @@ async def main():
                         log.write(
                             f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
                         )
+                    cache_mgr.sync_rejection_log(reject_log_file, today_str)
 
                 total_in_tokens += t_in
                 total_out_tokens += t_out
