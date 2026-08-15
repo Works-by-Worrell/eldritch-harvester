@@ -12,16 +12,19 @@ load_dotenv()
 os.makedirs("logs", exist_ok=True)
 
 _orig_print = builtins.print
+
+
 def tee_print(*args, **kwargs):
     _orig_print(*args, **kwargs)
     try:
-        today = datetime.now().strftime('%Y_%m_%d')
+        today = datetime.now().strftime("%Y_%m_%d")
         with open(f"logs/eldritch_run_{today}.log", "a", encoding="utf-8") as log_f:
             msg = " ".join(str(a) for a in args)
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             log_f.write(f"[{timestamp}] {msg}\n")
     except Exception:
-        pass # Fallback safely if log writing fails
+        pass  # Fallback safely if log writing fails
+
 
 builtins.print = tee_print
 
@@ -33,6 +36,7 @@ from mcp.client.sse import sse_client
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
 from src.worksbyworrell.harvester.scraper import fetch_job_links, get_page_text
+from src.worksbyworrell.storage import GCSCacheManager
 
 HOPPER_FILE = "hopper.txt"
 SEARCH_TERMS_FILE = "search_terms.txt"
@@ -41,17 +45,15 @@ PROCESSED_FILE = "processed_links.txt"
 MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
 OPERATOR_PROFILE = os.environ.get("OPERATOR_PROFILE", "raworre")
 
+
 async def main():
     print("\n========================================")
     print("🌌 ELDRITCH HARVESTER AWAKENS")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("========================================\n")
 
-    if os.path.exists(PROCESSED_FILE):
-        with open(PROCESSED_FILE, "r") as f:
-            processed_links = set(line.strip() for line in f if line.strip())
-    else:
-        processed_links = set()
+    cache_mgr = GCSCacheManager(local_processed_file=PROCESSED_FILE)
+    processed_links = cache_mgr.download_processed_links()
 
     if os.path.exists(SEARCH_TERMS_FILE):
         with open(SEARCH_TERMS_FILE, "r") as f:
@@ -61,7 +63,9 @@ async def main():
 
     if os.path.exists(TARGET_BOARDS_FILE):
         with open(TARGET_BOARDS_FILE, "r") as f:
-            target_boards = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+            target_boards = [
+                line.strip() for line in f if line.strip() and not line.startswith("#")
+            ]
     else:
         target_boards = []
 
@@ -113,9 +117,11 @@ async def main():
     urls_to_process = urls[:MAX_JOBS]
     urls_to_keep_for_later = urls[MAX_JOBS:]
 
-    print(f"Processing up to {MAX_JOBS} jobs this run. {len(urls_to_keep_for_later)} will wait for next time.")
+    print(
+        f"Processing up to {MAX_JOBS} jobs this run. {len(urls_to_keep_for_later)} will wait for next time."
+    )
 
-    today_str = datetime.now().strftime('%Y_%m_%d')
+    today_str = datetime.now().strftime("%Y_%m_%d")
     reject_log_file = f"logs/clutch_rejects_{today_str}.log"
 
     with open(reject_log_file, "a") as log:
@@ -125,7 +131,7 @@ async def main():
         print("❌ Error: GEMINI_API_KEY environment variable is missing!")
         print("Run: export GEMINI_API_KEY='your-key-here'")
         return
-        
+
     ai_client = genai.Client()
 
     try:
@@ -135,42 +141,40 @@ async def main():
         return
 
     headers = {"Authorization": f"Bearer {token}"}
-    
-    successful_urls = []
-    
-    # Prompts will be loaded from MCP server
-    
 
-    
+    successful_urls = []
+
+    # Prompts will be loaded from MCP server
+
     async with sse_client(MCP_URL, headers=headers) as streams:
         async with ClientSession(streams[0], streams[1]) as session:
             await session.initialize()
             print("✅ Connected to Warlock MCP Server.")
-            
+
             # Fetch prompts from MCP server
             print("Fetching profiles from MCP server...")
             clutch_resource = await session.read_resource("agent://clutch")
             clutch_system = clutch_resource.contents[0].text
-            
+
             profile_resource = await session.read_resource(f"profile://{OPERATOR_PROFILE}/combined")
             operator_profile = profile_resource.contents[0].text
             print("✅ Profiles loaded successfully.")
-            
+
             total_in_tokens = 0
             total_out_tokens = 0
-            
+
             for url in urls_to_process:
                 job_text = get_page_text(url)
                 if not job_text:
                     continue
-                    
+
                 eval_data, t_in, t_out = evaluate_job(
                     url, job_text, ai_client, clutch_system, operator_profile
                 )
-                
+
                 if not eval_data:
                     continue
-                    
+
                 # Handle cases where Gemini wraps the JSON object in an array
                 if isinstance(eval_data, list) and len(eval_data) > 0:
                     eval_data = eval_data[0]
@@ -180,7 +184,7 @@ async def main():
                     continue
 
                 print(f"📊 Verdict: {eval_data.get('verdict')}")
-                
+
                 if eval_data.get("verdict") == "PROCEED":
                     org_name = eval_data.get("organization")
                     if org_name and org_name.lower() != "unknown":
@@ -190,9 +194,7 @@ async def main():
                             research_response = ai_client.models.generate_content(
                                 model="gemini-3.6-flash",
                                 contents=research_prompt,
-                                config=types.GenerateContentConfig(
-                                    tools=[{"google_search": {}}]
-                                )
+                                config=types.GenerateContentConfig(tools=[{"google_search": {}}]),
                             )
                             eval_data["company_research"] = research_response.text.strip()
                         except Exception as e:
@@ -204,25 +206,30 @@ async def main():
                         continue
                 else:
                     print(f"🛑 Job rejected by Clutch: {url}")
-                    reason = eval_data.get('rejection_reason', 'No reason provided')
+                    reason = eval_data.get("rejection_reason", "No reason provided")
                     with open(reject_log_file, "a") as log:
-                        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        log.write(f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n")
+                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        log.write(
+                            f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
+                        )
 
                 total_in_tokens += t_in
                 total_out_tokens += t_out
                 successful_urls.append(url)
 
                 # Mark as permanently processed
-                with open(PROCESSED_FILE, "a") as f:
-                    f.write(f"{url}\n")
+                processed_links.add(url)
+                cache_mgr.upload_processed_links(processed_links)
 
-    remaining_urls = [u for u in urls_to_process if u not in successful_urls] + urls_to_keep_for_later
+    remaining_urls = [
+        u for u in urls_to_process if u not in successful_urls
+    ] + urls_to_keep_for_later
     with open(HOPPER_FILE, "w") as f:
         for u in remaining_urls:
             f.write(f"{u}\n")
     print(f"🧹 Run complete. {len(remaining_urls)} jobs left in Hopper due to errors.")
     print(f"📈 Total API Tokens Consumed this run: {total_in_tokens} IN | {total_out_tokens} OUT")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

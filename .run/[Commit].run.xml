@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="[Commit]" type="CompoundRunConfigurationType">
-    <toRun name="[Lint]" type="ShConfigurationType" />
-    <toRun name="[Test]" type="ShConfigurationType" />
+    <toRun name="Havester [test]" type="tests" />
+    <toRun name="Harvester [lint]" type="ShConfigurationType" />
     <method v="2" />
   </configuration>
 </component>
