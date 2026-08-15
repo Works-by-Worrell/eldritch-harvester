@@ -5,8 +5,6 @@ async def push_to_youtrack(
     session: ClientSession,
     evaluation: dict,
     url: str,
-    mcp_url: str | None = None,
-    headers: dict | None = None,
 ):
     """Uses the Warlock MCP server to create a YouTrack issue."""
     print("🚀 Torque is pushing the evaluation to YouTrack...")
@@ -66,8 +64,6 @@ async def push_to_youtrack(
 
     import asyncio
 
-    from mcp.client.sse import sse_client
-
     MAX_RETRIES = 5
     active_session = session
 
@@ -113,42 +109,8 @@ async def push_to_youtrack(
                     f"⚠️ 429 Rate limit exception encountered: {e}. Retrying in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
                 )
                 await asyncio.sleep(wait_sec)
-            elif (
-                ("404" in err_str or "Not Found" in err_str or "closed" in err_str.lower())
-                and mcp_url
-                and attempt < MAX_RETRIES
-            ):
-                wait_sec = attempt * 3
-                print(
-                    f"⚠️ MCP SSE Session expired ({e}). Opening fresh session to retry YouTrack push in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
-                )
-                await asyncio.sleep(wait_sec)
-                try:
-                    async with sse_client(mcp_url, headers=headers) as fresh_streams:
-                        async with ClientSession(
-                            fresh_streams[0], fresh_streams[1]
-                        ) as fresh_session:
-                            await fresh_session.initialize()
-                            active_session = fresh_session
-                            result = await active_session.call_tool(
-                                "create_youtrack_issue",
-                                arguments={
-                                    "summary": f"[ExFil Protocol] {org} - {identifier}",
-                                    "description": description,
-                                    "priority": priority,
-                                    "custom_fields": custom_fields,
-                                    "tags": tags,
-                                },
-                            )
-                            response_text = result.content[0].text if result.content else ""
-                            print(
-                                f"✅ Ticket created successfully via fresh session: {response_text}"
-                            )
-                            return True
-                except Exception as fresh_err:
-                    print(f"⚠️ Fresh session retry failed: {fresh_err}")
             else:
-                print(f"❌ Failed to create ticket via MCP: {e}")
+                print(f"❌ Failed to create ticket via local MCP: {e}")
                 return False
 
     return False

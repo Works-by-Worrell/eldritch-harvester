@@ -30,7 +30,7 @@ builtins.print = tee_print
 
 from google import genai
 from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.stdio import get_default_environment, stdio_client
 
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
@@ -41,7 +41,6 @@ HOPPER_FILE = "hopper.txt"
 SEARCH_TERMS_FILE = "search_terms.txt"
 TARGET_BOARDS_FILE = "target_boards.txt"
 PROCESSED_FILE = "processed_links.txt"
-MCP_URL = os.environ.get("WARLOCK_MCP_URL", "https://warlock-nprd.worksbyworrell.com/sse")
 OPERATOR_PROFILE = os.environ.get("OPERATOR_PROFILE", "raworre")
 
 
@@ -133,14 +132,6 @@ async def main():
 
     ai_client = genai.Client()
 
-    try:
-        token = subprocess.check_output(["gcloud", "auth", "print-identity-token"]).decode().strip()
-    except subprocess.CalledProcessError:
-        print("❌ Failed to get gcloud token. Run 'gcloud auth login'.")
-        return
-
-    headers = {"Authorization": f"Bearer {token}"}
-
     successful_urls = []
     total_in_tokens = 0
     total_out_tokens = 0
@@ -148,10 +139,12 @@ async def main():
     MAX_RETRIES = 5
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            async with sse_client(MCP_URL, headers=headers) as streams:
+            async with stdio_client(
+                "uvx", ["warlock-mcp==0.0.10", "--transport", "stdio"], env=get_default_environment()
+            ) as streams:
                 async with ClientSession(streams[0], streams[1]) as session:
                     await session.initialize()
-                    print("✅ Connected to Warlock MCP Server.")
+                    print("✅ Connected to Warlock MCP Server via STDIO.")
 
                     # Fetch profiles from MCP server
                     print("Fetching profiles from MCP server...")
@@ -207,7 +200,7 @@ async def main():
                                         )
 
                                 success = await push_to_youtrack(
-                                    session, eval_data, url, mcp_url=MCP_URL, headers=headers
+                                    session, eval_data, url
                                 )
                                 if not success:
                                     continue
