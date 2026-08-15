@@ -1,0 +1,2 @@
+# Target Job Boards (URL templates with {term} parameter)
+https://builtin.com/jobs?search={term}
