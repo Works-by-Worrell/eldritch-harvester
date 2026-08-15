@@ -146,7 +146,7 @@ async def main():
     total_in_tokens = 0
     total_out_tokens = 0
 
-    MAX_RETRIES = 3
+    MAX_RETRIES = 5
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             async with sse_client(MCP_URL, headers=headers) as streams:
@@ -231,7 +231,7 @@ async def main():
             break
         except Exception as e:
             if attempt < MAX_RETRIES:
-                wait_sec = attempt * 3
+                wait_sec = attempt * 5
                 print(
                     f"⚠️ MCP Session interrupted ({e}). Retrying connection in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
                 )
