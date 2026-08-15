@@ -9,9 +9,17 @@ class GCSCacheManager:
     """Manages cache synchronization with GCP Cloud Storage."""
 
     def __init__(
-        self, bucket_name: Optional[str] = None, local_processed_file: str = "processed_links.txt"
+        self,
+        bucket_name: Optional[str] = None,
+        local_processed_file: str = "processed_links.txt",
+        use_env_default: bool = True,
     ):
-        self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
+        if bucket_name is not None:
+            self.bucket_name = bucket_name
+        elif use_env_default:
+            self.bucket_name = os.environ.get("GCS_BUCKET_NAME")
+        else:
+            self.bucket_name = None
         self.local_processed_file = local_processed_file
         self._client = None
 

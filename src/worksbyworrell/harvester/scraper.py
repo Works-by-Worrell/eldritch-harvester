@@ -17,13 +17,30 @@ def fetch_job_links(board_url: str) -> list[str]:
             href = a_tag["href"]
             href_lower = href.lower()
 
-            # Exclude pagination, search queries, and broad hubs
-            if "?" in href_lower or "/remote" in href_lower or "/search" in href_lower:
+            # Strip query string for path checking
+            clean_href = href_lower.split("?")[0].rstrip("/")
+
+            # Exclude pagination, search queries, hubs, region, and category pages
+            if "?" in href_lower or "/remote" in clean_href or "/search" in clean_href:
                 continue
 
-            # Target explicit job detail pages that have a slug or ID
-            # Examples: /job/slug/123, /careers/slug, /jobs/123
-            if re.search(r"/(job|jobs|careers|role|position)/.+", href_lower):
+            # Exclude known category/region index paths
+            if re.search(
+                r"/jobs/(mena|na|sa|eu|apac|operations|sales|marketing|engineering|product)/",
+                clean_href,
+            ):
+                continue
+
+            # Target explicit job detail pages that end with a numeric ID or UUID
+            # Examples: /job/slug/10170358, /jobs/company/12345, /careers/role/a1b2c3d4-e5f6-7890
+            is_job_detail = re.search(
+                r"/(job|jobs|careers|role|position)/.+/\d+$", clean_href
+            ) or re.search(
+                r"/(job|jobs|careers|role|position)/.+/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+                clean_href,
+            )
+
+            if is_job_detail:
                 if href.startswith("/"):
                     parsed = urlparse(board_url)
                     base_url = f"{parsed.scheme}://{parsed.netloc}"

@@ -8,7 +8,9 @@ def test_local_fallback_when_no_bucket(tmp_path):
     with open(local_file, "w") as f:
         f.write("https://example.com/1\nhttps://example.com/2\n")
 
-    manager = GCSCacheManager(bucket_name=None, local_processed_file=local_file)
+    manager = GCSCacheManager(
+        bucket_name=None, local_processed_file=local_file, use_env_default=False
+    )
     links = manager.download_processed_links()
 
     assert links == {"https://example.com/1", "https://example.com/2"}
@@ -16,7 +18,9 @@ def test_local_fallback_when_no_bucket(tmp_path):
 
 def test_upload_local_fallback(tmp_path):
     local_file = str(tmp_path / "processed_links.txt")
-    manager = GCSCacheManager(bucket_name=None, local_processed_file=local_file)
+    manager = GCSCacheManager(
+        bucket_name=None, local_processed_file=local_file, use_env_default=False
+    )
 
     test_links = {"https://example.com/a", "https://example.com/b"}
     result = manager.upload_processed_links(test_links)

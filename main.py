@@ -146,10 +146,13 @@ async def main():
 
     # Prompts will be loaded from MCP server
 
-    async with sse_client(MCP_URL, headers=headers) as streams:
-        async with ClientSession(streams[0], streams[1]) as session:
-            await session.initialize()
-            print("✅ Connected to Warlock MCP Server.")
+    MAX_RETRIES = 3
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with sse_client(MCP_URL, headers=headers) as streams:
+                async with ClientSession(streams[0], streams[1]) as session:
+                    await session.initialize()
+                    print("✅ Connected to Warlock MCP Server.")
 
             # Fetch prompts from MCP server
             print("Fetching profiles from MCP server...")
@@ -220,6 +223,18 @@ async def main():
                 # Mark as permanently processed
                 processed_links.add(url)
                 cache_mgr.upload_processed_links(processed_links)
+            break
+        except Exception as e:
+            if attempt < MAX_RETRIES:
+                wait_sec = attempt * 3
+                print(
+                    f"⚠️ MCP Session interrupted ({e}). Retrying connection in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
+                )
+                await asyncio.sleep(wait_sec)
+            else:
+                print(
+                    f"❌ Connection to Warlock MCP Server failed after {MAX_RETRIES} attempts: {e}"
+                )
 
     remaining_urls = [
         u for u in urls_to_process if u not in successful_urls
