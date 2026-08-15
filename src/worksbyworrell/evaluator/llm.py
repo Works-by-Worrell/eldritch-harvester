@@ -33,6 +33,7 @@ def evaluate_job(
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 response_mime_type="application/json",  # Forces strictly valid JSON
+                temperature=0.0,  # Zero-variance deterministic sampling
             ),
         )
 
