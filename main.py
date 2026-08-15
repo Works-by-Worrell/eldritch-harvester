@@ -207,7 +207,9 @@ async def main():
                                         "Research failed or unavailable."
                                     )
 
-                            success = await push_to_youtrack(session, eval_data, url)
+                            success = await push_to_youtrack(
+                                session, eval_data, url, mcp_url=MCP_URL, headers=headers
+                            )
                             if not success:
                                 continue
                         else:
