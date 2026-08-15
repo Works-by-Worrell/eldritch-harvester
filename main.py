@@ -166,72 +166,78 @@ async def main():
                     print("✅ Profiles loaded successfully.")
 
                     for url in urls_to_process:
-                        job_text = get_page_text(url)
-                        if not job_text:
-                            continue
-
-                        eval_data, t_in, t_out = evaluate_job(
-                            url, job_text, ai_client, clutch_system, operator_profile
-                        )
-
-                        if not eval_data:
-                            continue
-
-                        # Handle cases where Gemini wraps the JSON object in an array
-                        if isinstance(eval_data, list) and len(eval_data) > 0:
-                            eval_data = eval_data[0]
-
-                        if not isinstance(eval_data, dict):
-                            print(f"❌ Gemini returned unexpected format: {type(eval_data)}")
-                            continue
-
-                        print(f"📊 Verdict: {eval_data.get('verdict')}")
-
-                        if eval_data.get("verdict") == "PROCEED":
-                            org_name = eval_data.get("organization")
-                            if org_name and org_name.lower() != "unknown":
-                                try:
-                                    print(f"🔍 Researching company dossier for: {org_name}...")
-                                    research_prompt = f"Perform a quick web search on the company '{org_name}'. Provide a 3-4 sentence summary including their main product/mission, year founded, and general Glassdoor or industry reputation."
-                                    research_response = ai_client.models.generate_content(
-                                        model="gemini-3.6-flash",
-                                        contents=research_prompt,
-                                        config=types.GenerateContentConfig(
-                                            tools=[{"google_search": {}}]
-                                        ),
-                                    )
-                                    eval_data["company_research"] = research_response.text.strip()
-                                except Exception as e:
-                                    print(f"⚠️ Failed to research company {org_name}: {e}")
-                                    eval_data["company_research"] = (
-                                        "Research failed or unavailable."
-                                    )
-
-                            success = await push_to_youtrack(
-                                session, eval_data, url, mcp_url=MCP_URL, headers=headers
-                            )
-                            if not success:
+                        try:
+                            job_text = get_page_text(url)
+                            if not job_text:
                                 continue
-                        else:
-                            print(f"🛑 Job rejected by Clutch: {url}")
-                            reason = eval_data.get("rejection_reason", "No reason provided")
-                            with open(reject_log_file, "a") as log:
-                                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                log.write(
-                                    f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
+
+                            eval_data, t_in, t_out = evaluate_job(
+                                url, job_text, ai_client, clutch_system, operator_profile
+                            )
+
+                            if not eval_data:
+                                continue
+
+                            # Handle cases where Gemini wraps the JSON object in an array
+                            if isinstance(eval_data, list) and len(eval_data) > 0:
+                                eval_data = eval_data[0]
+
+                            if not isinstance(eval_data, dict):
+                                print(f"❌ Gemini returned unexpected format: {type(eval_data)}")
+                                continue
+
+                            print(f"📊 Verdict: {eval_data.get('verdict')}")
+
+                            if eval_data.get("verdict") == "PROCEED":
+                                org_name = eval_data.get("organization")
+                                if org_name and org_name.lower() != "unknown":
+                                    try:
+                                        print(f"🔍 Researching company dossier for: {org_name}...")
+                                        research_prompt = f"Perform a quick web search on the company '{org_name}'. Provide a 3-4 sentence summary including their main product/mission, year founded, and general Glassdoor or industry reputation."
+                                        research_response = ai_client.models.generate_content(
+                                            model="gemini-3.6-flash",
+                                            contents=research_prompt,
+                                            config=types.GenerateContentConfig(
+                                                tools=[{"google_search": {}}]
+                                            ),
+                                        )
+                                        eval_data["company_research"] = (
+                                            research_response.text.strip()
+                                        )
+                                    except Exception as e:
+                                        print(f"⚠️ Failed to research company {org_name}: {e}")
+                                        eval_data["company_research"] = (
+                                            "Research failed or unavailable."
+                                        )
+
+                                success = await push_to_youtrack(
+                                    session, eval_data, url, mcp_url=MCP_URL, headers=headers
                                 )
-                            cache_mgr.sync_rejection_log(reject_log_file, today_str)
+                                if not success:
+                                    continue
+                            else:
+                                print(f"🛑 Job rejected by Clutch: {url}")
+                                reason = eval_data.get("rejection_reason", "No reason provided")
+                                with open(reject_log_file, "a") as log:
+                                    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    log.write(
+                                        f"[{ts}] REJECTED: {url} | Org: {eval_data.get('organization')} | Title: {eval_data.get('identifier')} | Reason: {reason}\n"
+                                    )
+                                cache_mgr.sync_rejection_log(reject_log_file, today_str)
 
-                        total_in_tokens += t_in
-                        total_out_tokens += t_out
-                        successful_urls.append(url)
+                            total_in_tokens += t_in
+                            total_out_tokens += t_out
+                            successful_urls.append(url)
 
-                        # Mark as permanently processed
-                        processed_links.add(url)
-                        cache_mgr.upload_processed_links(processed_links)
-                        await asyncio.sleep(2.0)
+                            # Mark as permanently processed
+                            processed_links.add(url)
+                            cache_mgr.upload_processed_links(processed_links)
+                            await asyncio.sleep(2.0)
+                        except (Exception, BaseExceptionGroup) as url_err:
+                            print(f"⚠️ Isolated error on {url}: {url_err}. Retrying next run.")
+                            continue
             break
-        except Exception as e:
+        except (Exception, BaseExceptionGroup) as e:
             if attempt < MAX_RETRIES:
                 wait_sec = attempt * 5
                 print(
