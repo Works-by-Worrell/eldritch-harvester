@@ -58,25 +58,53 @@ async def push_to_youtrack(session: ClientSession, evaluation: dict, url: str):
     if evaluation.get("golden_ticket"):
         priority = "Show-stopper"
 
-    try:
-        result = await session.call_tool(
-            "create_youtrack_issue",
-            arguments={
-                "summary": f"[ExFil Protocol] {org} - {identifier}",
-                "description": description,
-                "priority": priority,
-                "custom_fields": custom_fields,
-                "tags": tags,
-            },
-        )
+    import asyncio
 
-        response_text = result.content[0].text if result.content else ""
-        if response_text.startswith("Failed"):
-            print(f"❌ Failed to create ticket: {response_text}")
-            return False
+    MAX_RETRIES = 5
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            result = await session.call_tool(
+                "create_youtrack_issue",
+                arguments={
+                    "summary": f"[ExFil Protocol] {org} - {identifier}",
+                    "description": description,
+                    "priority": priority,
+                    "custom_fields": custom_fields,
+                    "tags": tags,
+                },
+            )
 
-        print(f"✅ Ticket created successfully: {response_text}")
-        return True
-    except Exception as e:
-        print(f"❌ Failed to create ticket via MCP: {e}")
-        return False
+            response_text = result.content[0].text if result.content else ""
+            if "429" in response_text or "Too Many Requests" in response_text:
+                if attempt < MAX_RETRIES:
+                    wait_sec = attempt * 5
+                    print(
+                        f"⚠️ 429 Rate limit response from YouTrack/MCP. Retrying in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
+                    )
+                    await asyncio.sleep(wait_sec)
+                    continue
+                else:
+                    print(
+                        f"❌ Failed to create ticket due to repeated 429 rate limits: {response_text}"
+                    )
+                    return False
+
+            if response_text.startswith("Failed"):
+                print(f"❌ Failed to create ticket: {response_text}")
+                return False
+
+            print(f"✅ Ticket created successfully: {response_text}")
+            return True
+        except (Exception, BaseExceptionGroup) as e:
+            err_str = str(e)
+            if ("429" in err_str or "Too Many Requests" in err_str) and attempt < MAX_RETRIES:
+                wait_sec = attempt * 5
+                print(
+                    f"⚠️ 429 Rate limit exception encountered: {e}. Retrying in {wait_sec}s (Attempt {attempt}/{MAX_RETRIES})..."
+                )
+                await asyncio.sleep(wait_sec)
+            else:
+                print(f"❌ Failed to create ticket via MCP: {e}")
+                return False
+
+    return False
