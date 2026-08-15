@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROCESSED_FILE = "processed_links.txt"
-DEFAULT_YOUTRACK_URL = "https://youtrack.worksbyworrell.com"
+DEFAULT_YOUTRACK_URL = "https://warlock-exfil.youtrack.cloud"
 
 
 def extract_source_url(description: str) -> List[str]:
