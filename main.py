@@ -221,7 +221,7 @@ async def main():
                             # Mark as permanently processed
                             processed_links.add(url)
                             cache_mgr.upload_processed_links(processed_links)
-                            await asyncio.sleep(2.0)
+                            await asyncio.sleep(5.0)
                         except (Exception, BaseExceptionGroup) as url_err:
                             print(f"⚠️ Isolated error on {url}: {url_err}. Retrying next run.")
                             continue
