@@ -137,7 +137,7 @@ async def main():
     total_in_tokens = 0
     total_out_tokens = 0
 
-    image_name = "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0"
+    image_name = "ghcr.io/works-by-worrell/warlock-mcp:latest"
     print(f"🐳 Validating Docker Image: {image_name}")
     print("   (This will pull the image if it's missing or updating. Please wait...)")
     subprocess.run(["docker", "pull", image_name], check=False)
@@ -153,7 +153,7 @@ async def main():
                     "--rm",
                     "--env-file",
                     ".env",
-                    "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0",
+                    "ghcr.io/works-by-worrell/warlock-mcp:latest",
                     "--transport",
                     "stdio",
                 ],
