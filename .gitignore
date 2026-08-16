@@ -27,3 +27,4 @@ logs/
 # IDEs
 .vscode/
 .idea/
+harvester_cache.db
