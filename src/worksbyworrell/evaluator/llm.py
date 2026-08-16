@@ -4,6 +4,25 @@ from google import genai
 from google.genai import types
 
 
+from pydantic import BaseModel, Field
+
+class Scores(BaseModel):
+    autonomy_proxy: int = Field(description="1-10 rating for autonomy")
+    maturity_proxy: int = Field(description="1-10 rating for engineering maturity")
+    stack_match: int = Field(description="1-10 rating for tech stack alignment")
+
+class ClutchEvaluation(BaseModel):
+    organization: str
+    identifier: str
+    baseline_requirements_met: bool | None
+    scores: Scores
+    golden_ticket: bool
+    priority: str
+    verdict: str
+    rejection_reason: str
+    strategic_questions: list[str]
+    actionable_next_steps: list[str]
+
 def evaluate_job(
     url: str, job_text: str, client: genai.Client, clutch_system: str, operator_profile: str
 ):
@@ -32,7 +51,8 @@ def evaluate_job(
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                response_mime_type="application/json",  # Forces strictly valid JSON
+                response_mime_type="application/json",
+                response_schema=ClutchEvaluation,
                 temperature=0.0,  # Zero-variance deterministic sampling
             ),
         )
