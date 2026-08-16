@@ -30,7 +30,7 @@ builtins.print = tee_print
 
 from google import genai
 from mcp.client.session import ClientSession
-from mcp.client.stdio import stdio_client
+from mcp.client.stdio import stdio_client, StdioServerParameters
 
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
@@ -139,14 +139,16 @@ async def main():
     MAX_RETRIES = 5
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            async with stdio_client(
-                "docker", [
+            server_params = StdioServerParameters(
+                command="docker",
+                args=[
                     "run", "-i", "--rm",
                     "--env-file", ".env",
                     "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0",
                     "--transport", "stdio"
                 ]
-            ) as streams:
+            )
+            async with stdio_client(server_params) as streams:
                 async with ClientSession(streams[0], streams[1]) as session:
                     await session.initialize()
                     print("✅ Connected to Warlock MCP Server via STDIO.")
