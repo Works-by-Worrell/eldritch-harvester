@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import asyncio
 import builtins
 import os
