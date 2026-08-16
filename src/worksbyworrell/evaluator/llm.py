@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 
 from google import genai
 from google.genai import types
@@ -17,8 +18,8 @@ class ClutchEvaluation(BaseModel):
     baseline_requirements_met: bool | None
     scores: Scores
     golden_ticket: bool
-    priority: str
-    verdict: str
+    priority: Literal["Show-stopper", "Critical", "Major", "Minor", "Normal"]
+    verdict: Literal["PROCEED", "REJECT"]
     rejection_reason: str
     strategic_questions: list[str]
     actionable_next_steps: list[str]
