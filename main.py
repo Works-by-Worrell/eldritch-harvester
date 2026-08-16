@@ -136,6 +136,12 @@ async def main():
     total_in_tokens = 0
     total_out_tokens = 0
 
+    image_name = "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0"
+    print(f"🐳 Validating Docker Image: {image_name}")
+    print("   (This will pull the image if it's missing or updating. Please wait...)")
+    import subprocess
+    subprocess.run(["docker", "pull", image_name], check=False)
+
     MAX_RETRIES = 5
     for attempt in range(1, MAX_RETRIES + 1):
         try:
