@@ -1,7 +1,6 @@
 import asyncio
 import builtins
 import os
-import subprocess
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -30,7 +29,7 @@ builtins.print = tee_print
 
 from google import genai
 from mcp.client.session import ClientSession
-from mcp.client.stdio import get_default_environment, stdio_client
+from mcp.client.stdio import stdio_client
 
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
