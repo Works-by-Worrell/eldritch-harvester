@@ -5,4 +5,4 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DIR"
 echo "Awakening Eldritch Harvester..."
-exec uv run main.py "$@"
+exec uv run python main.py "$@"
