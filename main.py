@@ -193,7 +193,7 @@ async def main():
 
                             print(f"📊 Verdict: {eval_data.get('verdict')}")
 
-                            if eval_data.get("verdict") == "PROCEED":
+                            if str(eval_data.get("verdict", "")).strip().upper() == "PROCEED":
                                 org_name = eval_data.get("organization")
                                 if org_name and org_name.lower() != "unknown":
                                     try:
