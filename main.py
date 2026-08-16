@@ -98,8 +98,11 @@ async def main():
         return
 
     with open(HOPPER_FILE, "r") as f:
-        # Preserve order but remove duplicates
-        urls = list(dict.fromkeys([line.strip() for line in f if line.strip()]))
+        # Preserve order but remove duplicates and already processed links
+        urls = list(dict.fromkeys([
+            line.strip() for line in f 
+            if line.strip() and line.strip() not in processed_links
+        ]))
 
     # Re-write the deduplicated list just to keep the file clean
     with open(HOPPER_FILE, "w") as f:
