@@ -16,13 +16,13 @@ class LocalCacheManager:
     def _init_db(self):
         try:
             with sqlite3.connect(self.db_path) as conn:
-                conn.execute('''
+                conn.execute("""
                     CREATE TABLE IF NOT EXISTS processed_links (
                         url TEXT PRIMARY KEY,
                         processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                ''')
-                conn.execute('''
+                """)
+                conn.execute("""
                     CREATE TABLE IF NOT EXISTS rejections (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         url TEXT,
@@ -31,7 +31,7 @@ class LocalCacheManager:
                         reason TEXT,
                         rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                ''')
+                """)
                 conn.commit()
         except Exception as e:
             logger.error(f"Failed to initialize SQLite database: {e}")
@@ -69,7 +69,7 @@ class LocalCacheManager:
             with sqlite3.connect(self.db_path) as conn:
                 conn.executemany(
                     "INSERT OR IGNORE INTO processed_links (url) VALUES (?)",
-                    [(link,) for link in links]
+                    [(link,) for link in links],
                 )
                 conn.commit()
             return True
@@ -87,7 +87,7 @@ class LocalCacheManager:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
                     "INSERT INTO rejections (url, organization, title, reason) VALUES (?, ?, ?, ?)",
-                    (url, org, title, reason)
+                    (url, org, title, reason),
                 )
                 conn.commit()
             return True

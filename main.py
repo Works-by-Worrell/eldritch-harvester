@@ -31,7 +31,7 @@ builtins.print = tee_print
 
 from google import genai
 from mcp.client.session import ClientSession
-from mcp.client.stdio import stdio_client, StdioServerParameters
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 from src.worksbyworrell.evaluator.llm import evaluate_job
 from src.worksbyworrell.evaluator.mcp_client import push_to_youtrack
@@ -148,11 +148,15 @@ async def main():
             server_params = StdioServerParameters(
                 command="docker",
                 args=[
-                    "run", "-i", "--rm",
-                    "--env-file", ".env",
+                    "run",
+                    "-i",
+                    "--rm",
+                    "--env-file",
+                    ".env",
                     "ghcr.io/works-by-worrell/warlock-mcp:v1.0.0",
-                    "--transport", "stdio"
-                ]
+                    "--transport",
+                    "stdio",
+                ],
             )
             async with stdio_client(server_params) as streams:
                 async with ClientSession(streams[0], streams[1]) as session:
@@ -212,16 +216,14 @@ async def main():
                                             "Research failed or unavailable."
                                         )
 
-                                success = await push_to_youtrack(
-                                    session, eval_data, url
-                                )
+                                success = await push_to_youtrack(session, eval_data, url)
                                 if not success:
                                     continue
                             else:
                                 print(f"🛑 Job rejected by Clutch: {url}")
                                 reason = eval_data.get("rejection_reason", "No reason provided")
-                                org = eval_data.get('organization', 'Unknown')
-                                title = eval_data.get('identifier', 'Unknown')
+                                org = eval_data.get("organization", "Unknown")
+                                title = eval_data.get("identifier", "Unknown")
                                 cache_mgr.log_rejection_to_db(url, org, title, reason)
 
                             total_in_tokens += t_in
