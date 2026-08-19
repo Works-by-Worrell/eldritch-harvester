@@ -3,11 +3,25 @@ import asyncio
 import builtins
 import os
 import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import quote_plus
 
-import sys
-from pathlib import Path
+from dotenv import load_dotenv
+
+env_path = Path.home() / ".wbw" / ".env"
+load_dotenv(dotenv_path=env_path)
+
+api_key = os.environ.get("HARVESTER_GEMINI_API_KEY")
+if not api_key:
+    print(f"❌ Error: HARVESTER_GEMINI_API_KEY is missing from {env_path}")
+    sys.exit(1)
+
+if api_key.startswith(('"', "'")) and api_key.endswith(('"', "'")) and len(api_key) >= 2:
+    api_key = api_key[1:-1]
+
+os.environ["GEMINI_API_KEY"] = api_key
 
 os.makedirs("logs", exist_ok=True)
 
@@ -130,23 +144,6 @@ async def main():
         log.write(f"\n--- Run Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n")
 
     env_path = Path.home() / ".wbw" / ".env"
-    api_key = None
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("HARVESTER_GEMINI_API_KEY="):
-                    val = line.split("=", 1)[1].strip()
-                    if val.startswith(('"', "'")) and val.endswith(('"', "'")) and len(val) >= 2:
-                        val = val[1:-1]
-                    api_key = val
-                    break
-
-    if not api_key:
-        print(f"❌ Error: HARVESTER_GEMINI_API_KEY is missing from {env_path}")
-        sys.exit(1)
-
-    os.environ["GEMINI_API_KEY"] = api_key
 
     ai_client = genai.Client()
 
