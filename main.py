@@ -6,9 +6,8 @@ import subprocess
 from datetime import datetime
 from urllib.parse import quote_plus
 
-from dotenv import load_dotenv
-
-load_dotenv()
+import sys
+from pathlib import Path
 
 os.makedirs("logs", exist_ok=True)
 
@@ -99,10 +98,11 @@ async def main():
 
     with open(HOPPER_FILE, "r") as f:
         # Preserve order but remove duplicates and already processed links
-        urls = list(dict.fromkeys([
-            line.strip() for line in f 
-            if line.strip() and line.strip() not in processed_links
-        ]))
+        urls = list(
+            dict.fromkeys(
+                [line.strip() for line in f if line.strip() and line.strip() not in processed_links]
+            )
+        )
 
     # Re-write the deduplicated list just to keep the file clean
     with open(HOPPER_FILE, "w") as f:
@@ -129,10 +129,24 @@ async def main():
     with open(reject_log_file, "a") as log:
         log.write(f"\n--- Run Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n")
 
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("❌ Error: GEMINI_API_KEY environment variable is missing!")
-        print("Run: export GEMINI_API_KEY='your-key-here'")
-        return
+    env_path = Path.home() / ".wbw" / ".env"
+    api_key = None
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("HARVESTER_GEMINI_API_KEY="):
+                    val = line.split("=", 1)[1].strip()
+                    if val.startswith(('"', "'")) and val.endswith(('"', "'")) and len(val) >= 2:
+                        val = val[1:-1]
+                    api_key = val
+                    break
+
+    if not api_key:
+        print(f"❌ Error: HARVESTER_GEMINI_API_KEY is missing from {env_path}")
+        sys.exit(1)
+
+    os.environ["GEMINI_API_KEY"] = api_key
 
     ai_client = genai.Client()
 
@@ -155,7 +169,7 @@ async def main():
                     "-i",
                     "--rm",
                     "--env-file",
-                    ".env",
+                    str(env_path),
                     "ghcr.io/works-by-worrell/warlock-mcp:latest",
                     "--transport",
                     "stdio",
